@@ -125,6 +125,47 @@ async def ask_ai(user_id: str, prompt: str) -> str:
         return f"⚠️ OmniRoute modeline ulaşılamadı ({AI_MODEL}):\n`{e}`"
 
 # ─── Mesaj İşleme ──────────────────────────────────────────────
+def normalize_messages(raw) -> list:
+    """
+    Taverns.py sürümlerinde get_messages farklı tip döndürebilir:
+    - list[Message]
+    - dict: {"messages": [...]}
+    - list[dict]
+    - beklenmedik string/list karışımı
+
+    Hepsini poller'in anlayacağı dict benzeri Message'a dönüştürür.
+    """
+    if isinstance(raw, dict):
+        raw = raw.get("messages", raw)
+
+    if not isinstance(raw, (list, tuple)):
+        return []
+
+    normalized = []
+    for item in raw:
+        if isinstance(item, str):
+            continue
+
+        if isinstance(item, dict):
+            sender = item.get("sender") or {}
+            normalized.append(Message(
+                id=item.get("id", ""),
+                channel_id=item.get("channelId", item.get("channel_id", "")),
+                content=item.get("content", "") or "",
+                sender_id=(sender.get("id", "") if isinstance(sender, dict)
+                           else item.get("senderId", "")),
+                tavern_id=item.get("tavernId", item.get("tavern_id", "")),
+                reply_to_id=item.get("replyToId"),
+                metadata=item.get("metadata") or {},
+                sender_is_bot=(sender.get("isBot", False) if isinstance(sender, dict)
+                               else item.get("senderIsBot", False)),
+            ))
+        elif hasattr(item, "id"):
+            normalized.append(item)
+
+    return normalized
+
+
 async def handle_message(msg: Message, tavern_id: str, bot_id: str, bot_name: str, channel_name: str = ""):
     if msg.sender_id == bot_id or msg.sender_is_bot:
         return
@@ -402,7 +443,11 @@ async def main_loop():
         try:
             raw_c = await rest.request("GET", f"/taverns/{t.id}/channels")
             c_list = raw_c.get("channels", raw_c) if isinstance(raw_c, dict) else raw_c
+            if not isinstance(c_list, list):
+                continue
             for ch in c_list:
+                if not isinstance(ch, dict):
+                    continue
                 if ch.get("type") in ("TEXT", "ANNOUNCEMENT"):
                     tracked_channels.append((t.id, ch["id"], ch["name"]))
         except Exception as e:
@@ -414,9 +459,15 @@ async def main_loop():
     seen_message_ids = set()
     for t_id, c_id, c_name in tracked_channels:
         try:
-            msgs = await rest.get_messages(t_id, c_id, limit=5)
+            raw_msgs = await rest.request(
+                "GET",
+                f"/taverns/{t_id}/channels/{c_id}/messages",
+                params={"limit": "5"},
+            )
+            msgs = normalize_messages(raw_msgs)
             for m in msgs:
-                seen_message_ids.add(m.id)
+                if getattr(m, "id", ""):
+                    seen_message_ids.add(m.id)
         except Exception:
             pass
 
@@ -431,10 +482,16 @@ async def main_loop():
             t_id, c_id, c_name = tracked_channels[turn % len(tracked_channels)]
             turn += 1
             try:
-                msgs = await rest.get_messages(t_id, c_id, limit=10)
+                raw_msgs = await rest.request(
+                    "GET",
+                    f"/taverns/{t_id}/channels/{c_id}/messages",
+                    params={"limit": "10"},
+                )
+                msgs = normalize_messages(raw_msgs)
                 for m in reversed(msgs):
-                    if m.id not in seen_message_ids:
-                        seen_message_ids.add(m.id)
+                    msg_id = getattr(m, "id", "")
+                    if msg_id and msg_id not in seen_message_ids:
+                        seen_message_ids.add(msg_id)
                         if len(seen_message_ids) > 5000:
                             seen_message_ids.clear()
                         try:
