@@ -12,6 +12,7 @@ venv/
 bot.log
 logs/
 data/bot-stdout.log
+data/database.json
 
 # IDE
 .vscode/
