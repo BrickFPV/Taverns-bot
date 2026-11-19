@@ -301,15 +301,34 @@ async def _fetch_channels_async() -> list[dict]:
         me = await rest.get_self()
         result = []
         for t in me.taverns:
-            channels = await rest.get_channels(t.id)
+            # get_channels bazı taverns.py sürümlerinde string eleman döndürebilir.
+            # Ham API cevabını alıp hem dict hem nesneyi güvenle normalize ediyoruz.
+            raw = await rest.request("GET", f"/taverns/{t.id}/channels")
+            channels = raw.get("channels", raw) if isinstance(raw, dict) else raw
+            if not isinstance(channels, list):
+                continue
+
             for c in channels:
+                if isinstance(c, str):
+                    continue
+                if isinstance(c, dict):
+                    cid = c.get("id", "")
+                    cname = c.get("name", "Bilinmeyen kanal")
+                    ctype = c.get("type", "TEXT")
+                else:
+                    cid = getattr(c, "id", "")
+                    cname = getattr(c, "name", "Bilinmeyen kanal")
+                    ctype = getattr(c, "type", "TEXT")
+
+                if not cid:
+                    continue
                 result.append({
                     "tavern_id": t.id,
-                    "tavern": t.name,
-                    "id": c.id,
-                    "name": c.name,
-                    "type": c.type,
-                    "writable": c.type in ("TEXT", "ANNOUNCEMENT"),
+                    "tavern": getattr(t, "name", str(getattr(t, "id", ""))),
+                    "id": cid,
+                    "name": cname,
+                    "type": ctype,
+                    "writable": ctype in ("TEXT", "ANNOUNCEMENT"),
                 })
         return result
     finally:
@@ -335,8 +354,13 @@ async def _test_channel_async(tavern_id: str, channel_id: str) -> dict:
             content="🧪 Yetki testi — bu mesaj otomatik silinecek.",
         )
         deleted = True
+        msg_id = getattr(msg, "id", "")
+        if not msg_id and isinstance(msg, dict):
+            msg_id = msg.get("id", "")
+        if not msg_id:
+            return {"ok": False, "error": "Mesaj gönderildi ama mesaj ID'si alınamadı."}
         try:
-            await rest.delete_message(tavern_id, msg.id)
+            await rest.delete_message(tavern_id, msg_id)
         except Exception:
             deleted = False
         return {"ok": True, "deleted": deleted}
