@@ -1,0 +1,42 @@
+# Tavern Bot - systemd servis dosyası (Raspberry Pi / Linux)
+# ---------------------------------------------------------
+# Kurulum:
+#   sudo cp tavern-bot.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable tavern-bot
+#   sudo systemctl start tavern-bot
+#
+# Logları izlemek:
+#   journalctl -u tavern-bot -f
+#
+# Durdurmak:
+#   sudo systemctl stop tavern-bot
+
+[Unit]
+Description=Tavern Bot (tav.gg) - OmniRoute AI + Mini Oyunlar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/tavern-bot
+Environment=PYTHONIOENCODING=utf-8
+Environment=PYTHONUTF8=1
+EnvironmentFile=/home/pi/tavern-bot/.env
+ExecStart=/home/pi/tavern-bot/venv/bin/python -u poller.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tavern-bot
+
+# Güvenlik
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/tavern-bot/data /home/pi/tavern-bot/logs
+
+[Install]
+WantedBy=multi-user.target

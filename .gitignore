@@ -1,0 +1,30 @@
+# .env dosyasını paylaşma! (Token, şifreler vb.)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/
+
+# Log
+bot.log
+logs/
+data/bot-stdout.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# GUI secret
+data/.gui_secret
+data/bot.pid
+
+# Raspberry Pi swap (performans için)
+*.swp
+*.swo
