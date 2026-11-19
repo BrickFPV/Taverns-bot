@@ -47,7 +47,9 @@ PID_FILE = DATA_DIR / "bot.pid"
 STDOUT_LOG = DATA_DIR / "bot-stdout.log"
 
 # GUI ayarları
-HOST = "127.0.0.1"
+# Güvenli varsayılan: LAN/Wi-Fi erişimi.
+# 127.0.0.1 (sadece bu bilgisayar) için GUI_HOST=127.0.0.1 ayarla.
+HOST = os.environ.get("GUI_HOST", "0.0.0.0").strip() or "0.0.0.0"
 PORT = int(os.environ.get("GUI_PORT", "8787"))
 SESSION_HOURS = 12
 
@@ -860,8 +862,8 @@ APP_HTML = r"""<!DOCTYPE html>
         <span>PID: <b id="sPids">—</b></span>
       </div>
       <p class="muted" style="font-size:13px;line-height:1.7">
-        Bu panel sadece bu bilgisayardan (<code>127.0.0.1</code>) açılabilir. Botu buradan başlatıp durdurabilirsin.
-        Değişiklikler anında uygulanır.
+        Bu panel aynı Wi-Fi/LAN ağıdaki cihazlardan erişilebilir. <code>http://&lt;bilgisayar-ip&gt;:8787</code>
+        üzerinden açabilirsin. Botu buradan başlatıp durdurabilirsin. Değişiklikler anında uygulanır.
       </p>
     </div>
   </section>
@@ -1232,15 +1234,26 @@ def main():
         sys.exit(1)
 
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    url = f"http://{HOST}:{PORT}"
+    # LAN IP adresini otomatik bul; kullanıcıya gerçek erişim adresini göster.
+    lan_ip = "127.0.0.1"
+    try:
+        import socket
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.connect(("8.8.8.8", 80))
+        lan_ip = probe.getsockname()[0]
+        probe.close()
+    except Exception:
+        pass
 
+    url = f"http://{lan_ip}:{PORT}"
     print("=" * 62)
     print("            TAVERN BOT — YEREL YÖNETİM PANELİ")
     print("=" * 62)
     print(f"  Adres    : {url}")
+    print(f"  Yerel    : http://127.0.0.1:{PORT}")
     print(f"  Şifre    : {PASSWORD}")
     print(f"  Kaynak   : .env -> GUI_PASSWORD")
-    print("  Erişim   : SADECE bu bilgisayar (127.0.0.1)")
+    print(f"  Erişim   : Wi-Fi/LAN: {lan_ip} ({HOST})")
     print("  Kapatmak : Bu pencereyi kapat veya CTRL+C")
     print("=" * 62)
 

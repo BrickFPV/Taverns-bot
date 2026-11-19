@@ -49,7 +49,9 @@ if errorlevel 1 (
 )
 
 echo Panel baslatiliyor... (Kapatmak icin bu pencereyi kapatabilirsin)
-echo Adres: http://127.0.0.1:8787
+for /f "tokens=2 delims=: " %%a in ('ipconfig ^| findstr /R /C:"IPv4.*:"') do set LAN_IP=%%a
+echo Adres: http://%LAN_IP%:8787  (wifi/lokal ag)
+echo Yerel: http://127.0.0.1:8787
 echo Sifre: .env dosyasindaki GUI_PASSWORD
 echo.
 

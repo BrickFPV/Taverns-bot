@@ -63,7 +63,10 @@ export PYTHONIOENCODING=utf-8
 export PYTHONUTF8=1
 
 echo -e "${GREEN}Yönetim paneli başlatılıyor...${NC}"
-echo -e "Adres: ${CYAN}http://127.0.0.1:${GUI_PORT:-8787}${NC}"
+LAN_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+LAN_IP=${LAN_IP:-127.0.0.1}
+echo -e "Adres (LAN/Wi-Fi): ${CYAN}http://${LAN_IP}:${GUI_PORT:-8787}${NC}"
+echo -e "Adres (bu cihaz):  ${CYAN}http://127.0.0.1:${GUI_PORT:-8787}${NC}"
 echo -e "Şifre: .env dosyasındaki GUI_PASSWORD"
 echo -e "Kapatmak için: CTRL+C"
 echo ""
